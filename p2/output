@@ -1,0 +1,20 @@
+main 257  { 266 
+	var 258 
+		int attr: 0 283  a 282 , 288  b 282 ; 265 
+		list 284  float attr: 2 283  l 282 ; 265 
+	endvar 259 
+	proc 260  mi_procedimiento 282 ( 261 int attr: 0 283  param1 282 , 288  mut 279  int attr: 0 283  param2 282 ) 262  { 266 
+		var 258 
+			int attr: 0 283  local 282 ; 265 
+		endvar 259 
+		proc 260  procedimiento_2 282 ( 261 ) 262  { 266  local 282  = 289  4 280 ; 265  } 267 
+		local 282  = 289  b 282 * attr: 2 268 2 280 ; 265 
+		param2 282  = 289  param1 282  * attr: 2 268  local 282 ; 265 
+	} 267 
+	b 282  = 289  3 280 ; 265 
+	read 277  a 282 ; 265 
+	l 282  = 289  [ 263 1.1 281 , 288  2.2 281 ] 264 ; 265 
+	print 278  "resultado" 287 , 288  mi_procedimiento 282 ( 261 a 282 , 288  3 280 ) 262 ; 265 
+	print 278  "error" 287 , 288   
+Error Léxico en Linea: 18. No se reconoce la palabra '%'. 
+} 267 
