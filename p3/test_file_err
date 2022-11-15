@@ -1,0 +1,9 @@
+main {
+	proc ads() {
+		if (a == 8 and b == 7 or a = 9)){
+		}
+	}
+
+	proc procedimientoB (b1, bool b2) {
+	}
+}

@@ -1,0 +1,22 @@
+main {
+	var
+		int ve;
+		float vf;
+		char vc;
+		bool vl;
+		list int l;
+	endvar
+
+	proc mi_procedimiento(int param1, mut int param2) {
+		var
+			int local;
+		endvar
+		proc procedimiento_2() { local = 4; }
+		local = b*2;
+		param2 = param1 * local;
+	}
+	b = 3;
+	read a;
+	l = [1.1, 2.2];
+	print "resultado", mi_procedimiento(a, 3);
+}
