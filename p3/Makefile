@@ -1,6 +1,6 @@
 all:
 	lex p3.l
-	yacc -v p3.y
+	yacc p3.y
 	gcc y.tab.c main.c -o prog
 
 clean:

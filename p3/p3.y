@@ -92,7 +92,6 @@ cuerpo_declar_variables     : tipo lista_variables PYC
                             | error
                             ;
 cabecera_subprograma        : PROC IDENTIFICADOR PAR_IZQ lista_parametros PAR_DER
-                            | error
                             ;
 sentencias                  : sentencias sentencia
                             |
@@ -158,6 +157,7 @@ lista_variables             : IDENTIFICADOR COMA lista_variables
                             ;
 lista_parametros            : parametro COMA lista_parametros
                             | parametro
+                            | error
                             |
                             ;
 

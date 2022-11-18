@@ -64,7 +64,7 @@ main {
 
 				dato= 2 ;
 				dato= valor*20/dato ;
-			} 
+			}
 			else {
 				valor= valor * 100 ;
 				d1= d1/1000.0 ;
@@ -77,14 +77,12 @@ main {
 		insert(pe, 0, pe[0]);
 		insert(pf, #pf, 10.0);
 		insert(pc, 0, 'A');
-		
-		if (pe[0] == 20) {
+
+		if (pe[0] == 20 or pe[1] == 2*pe[0]) {
 			ve= pe[#pe - 1];
 			remove(pe, #pe - 1);
-		} 
-		else {
 			pe= pe * pe2 ;
 			pe= pe2 - #pe * (20/2000) ;
-		}
+		} 
 	}
 }
