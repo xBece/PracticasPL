@@ -1,0 +1,23 @@
+main {
+	var
+		int a, b;
+		bool c;
+		float a;
+	endvar
+
+	proc procA(float a, float b, char d) {
+		var
+			char a;
+		endvar
+		a = 1.1;
+		c = false;
+		d = 'a';
+		procA(1.1, 2.2, '8');
+	}
+
+	proc procB(float a, char a) { }
+
+	a = 3;
+	d = false;
+	c = 8;
+}
