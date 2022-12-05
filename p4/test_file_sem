@@ -1,23 +1,24 @@
 main {
 	var
-		int a, b;
+		in% a, b;
 		bool c;
-		float a;
 	endvar
 
 	proc procA(float a, float b, char d) {
 		var
 			char a;
 		endvar
-		a = 1.1;
+		a = 'v';
 		c = false;
-		d = 'a';
+		d = !'a';
 		procA(1.1, 2.2, '8');
 	}
 
 	proc procB(float a, char a) { }
 
-	a = 3;
+	a = #3.2;
 	d = false;
 	c = 8;
+
+	procA(1.1, mismuertos, 'a', 9);
 }
