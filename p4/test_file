@@ -82,7 +82,7 @@ main {
 			ve= pe[#pe - 1];
 			remove(pe, #pe - 1);
 			pe[0] = pe[0] * pe2[0] ;
-			pe[0] = pe2[0] - #pe * 20 / 2000 ;
+			pe[0] = pe2[0] - #pe * 20/2000 ;
 		} 
 	}
 }

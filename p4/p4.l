@@ -21,7 +21,7 @@ ALFANUMERICO_   [a-zA-Z0-9_]
 DIGITO          [0-9]
 IDENTIFICADOR   {LETRA}{ALFANUMERICO_}*
 ENTERO          {DIGITO}+
-REAL            {ENTERO}+.{ENTERO}+
+REAL            {ENTERO}+\.{ENTERO}+
 
 %%
  /* Sección de reglas */
