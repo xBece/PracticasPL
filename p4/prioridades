@@ -1,0 +1,17 @@
+
+MAYOR prioridad
+
+- ! #
+
+/ * OP_BINARIO_PROD_DIV
+
++ - OP_BINARIO_SUM
+
+> < => =< != == OP_BINARIO_REL
+
+and or OP_BINARIO_BOOL
+
+MENOR prioridad
+
+
+if (pe[0]+1*2 == 20 or pe[1] == 2*pe[0]) {

@@ -47,7 +47,10 @@ bool inside_list_declaration;
 %token PYC
 %token INI_BLOQUE
 %token FIN_BLOQUE
-%token OP_BINARIO
+%token OP_BINARIO_REL
+%token OP_BINARIO_PROD_DIV
+%token OP_BINARIO_SUM
+%token OP_BINARIO_BOOL
 %token OP_UNARIO
 %token MENOS
 %token BOOL
@@ -72,9 +75,13 @@ bool inside_list_declaration;
 %token CARACTER
 %token ELSE
 
-%left OP_BINARIO
-%left MENOS
+// menor precedencia
+%left OP_BINARIO_BOOL
+%left OP_BINARIO_REL
+%left OP_BINARIO_SUM MENOS
+%left OP_BINARIO_PROD_DIV
 %left OP_UNARIO
+// mayor precedencia
 
 %start programa
 
@@ -148,9 +155,11 @@ sentencia_return            : RETURN;
 
 expresion                   : PAR_IZQ expresion PAR_DER { $$.tipo = $2.tipo; }
                             | OP_UNARIO expresion { ts_check_op_un($2.tipo, $1.tipo); $$.tipo = ($1.tipo == LengthOf ? Int : $2.tipo); }
-                            | MENOS expresion { ts_check_menos_un($2.tipo); $$.tipo = $2.tipo; }
-                            // TODO Por que coño sale tipo float en linea 85 de test_file. Creemos que se refiere a tipo mult.
-                            | expresion OP_BINARIO expresion { ts_check_op_bin($1.tipo, $3.tipo, $2.tipo); $$.tipo = (is_op_rel($2.tipo) ? Bool : $1.tipo); }
+                            | MENOS expresion %prec OP_UNARIO { ts_check_menos_un($2.tipo); $$.tipo = $2.tipo; }
+                            | expresion OP_BINARIO_BOOL expresion { ts_check_op_bin($1.tipo, $3.tipo, $2.tipo); $$.tipo = $1.tipo; }
+                            | expresion OP_BINARIO_PROD_DIV expresion { ts_check_op_bin($1.tipo, $3.tipo, $2.tipo); $$.tipo = $1.tipo; }
+                            | expresion OP_BINARIO_REL expresion { ts_check_op_bin($1.tipo, $3.tipo, $2.tipo); $$.tipo = Bool; }
+                            | expresion OP_BINARIO_SUM expresion { ts_check_op_bin($1.tipo, $3.tipo, $2.tipo); $$.tipo = $1.tipo; }
                             | expresion MENOS expresion { ts_check_menos_bin($1.tipo, $3.tipo); $$.tipo = $1.tipo; }
                             | identificador { $$.tipo = $1.tipo; }
                             | constante { $$.tipo = $1.tipo; }
@@ -173,9 +182,12 @@ lista_expresiones_o_cadena  : lista_expresiones_o_cadena COMA expresion
                             ;
 lista_expresiones           : lista_expresiones COMA expresion_ 
                               { 
-                              if(inside_list_declaration)
-                                ts_check_types($1.tipo, $3.tipo, "Tipos de constantes de lista erróneos");
-                              $$.tipo = $1.tipo; 
+                              if(inside_list_declaration) {
+                                if (!ts_check_types($1.tipo, $3.tipo, "Tipos de constantes de lista erróneos") && $1.tipo != Desconocido )
+                                  $$.tipo = Desconocido;
+                                else
+                                  $$.tipo = $1.tipo; 
+                              }
                               }
                             | expresion_ { $$.tipo = $1.tipo; }
                             |
@@ -199,10 +211,7 @@ identificador               : IDENTIFICADOR
                                   ts_insert_var($1.lex, current_declaring_type);
                                 else if (!inside_cabecera_proc){
                                   ts_check($1.lex);
-                                  // if (ts_is_var($1.lex))
-                                    $$.tipo = ts_get_var_type($1.lex);
-                                  // else
-                                  //   $$.tipo = Desconocido;
+                                  $$.tipo = ts_get_var_type($1.lex);
                                 }
                               };
 lista_parametros            : parametro COMA lista_parametros {ts_insert_param($1.lex, $1.tipo);}
@@ -224,7 +233,9 @@ constante                   : ENTERO { $$.tipo = Int; }
                             | lista { $$.tipo = $1.tipo; }
                             ;
 
-lista                       : COR_IZQ lista_expresiones COR_DER { $$.tipo = get_tipo_lista($2.tipo); };
+lista                       : COR_IZQ { inside_list_declaration = true; }
+                              lista_expresiones COR_DER
+                              { inside_list_declaration = false; $$.tipo = get_tipo_lista($3.tipo); };
 
 
 

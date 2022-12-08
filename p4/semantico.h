@@ -40,8 +40,6 @@ typedef enum {
 int get_tipo_lista(TipoVar tipo_basico);
 int get_tipo_basico(TipoVar tipo_lista);
 
-bool is_op_rel(TipoOpBinario tipo_op);
-
 // Idea: añadir valor para enteros, reales, etc, si fuera necesario en el futuro
 // en vez de guardar el lexema.
 // TODO: arreglar esta verga. (struct y punto, sin union) UNA POLLA, YA VEREMOS.
@@ -64,7 +62,7 @@ void ts_check(const char* lex);
 
 void ts_remove_until_mark(void);
 
-void ts_check_types(TipoVar tipo1, TipoVar tipo2, const char* msg);
+bool ts_check_types(TipoVar tipo1, TipoVar tipo2, const char* msg);
 
 void ts_check_arg_type(const char* func_name, int arg_index, TipoVar tipo);
 

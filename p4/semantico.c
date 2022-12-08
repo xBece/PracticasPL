@@ -31,17 +31,20 @@ typedef struct {
 static Symbol ts[MAX_SYMBOLS];
 static int ts_size = 0;
 
+static bool is_list_type(TipoVar tipo_lista);
+
 int get_tipo_lista(TipoVar tipo_basico) {
+	if (tipo_basico == Desconocido)
+		return Desconocido;
+	assert(!is_list_type(tipo_basico));
 	return tipo_basico + 4;
 }
 
 int get_tipo_basico(TipoVar tipo_lista) {
+	if (tipo_lista == Desconocido)
+		return Desconocido;
+	assert(is_list_type(tipo_lista));
 	return tipo_lista - 4;
-}
-
-bool is_op_rel(TipoOpBinario tipo_op) {
-	return tipo_op == Greater || tipo_op == Less || tipo_op == GreaterEq ||
-	       tipo_op == LessEq || tipo_op == NotEq || tipo_op == Eq;
 }
 
 static const char* tipo_var_to_str(TipoVar tipo_var);
@@ -174,13 +177,16 @@ void ts_insert_mark(void) {
 void ts_check(const char* lex) {
 	// printf("checking if symbol %s exists\n", lex);
 	if (ts_search(lex) == -1)
-		error_semantico("no existe la variable %s", lex);
+		error_semantico("no existe el identificador %s", lex);
 }
 
 void ts_remove_until_mark(void) {
 	// Look for mark
 	int i_mark = -1;
-	for (int i = ts_size; i >= 0; i--) {
+	// -------- Aqui mateos puso ts_size en vez de ts_size - 1 ----------
+	// Press F to pay respects    TOOOOOOOOOOOOOOOOOOOOOOONTO
+	// ------------------------------------------------------------------
+	for (int i = ts_size - 1; i >= 0; i--) {
 		if (ts[i].tipo == Mark) {
 			i_mark = i;
 			break;
@@ -195,10 +201,14 @@ void ts_remove_until_mark(void) {
 // 	if (tipo1 != tipo2) {
 // 		error_semantico("")
 // 	}
-void ts_check_types(TipoVar tipo1, TipoVar tipo2, const char* msg){
+bool ts_check_types(TipoVar tipo1, TipoVar tipo2, const char* msg){
+	if(tipo1 == Desconocido || tipo2 == Desconocido)
+		return false;
 	if(tipo1 != tipo2){
 		error_semantico("%s: %s, %s", msg, tipo_var_to_str(tipo1), tipo_var_to_str(tipo2));
+		return false;
 	}
+	return true;
 }
 
 static int ts_get_num_args(int i_proc) {
@@ -211,6 +221,8 @@ static int ts_get_num_args(int i_proc) {
 
 void ts_check_arg_type(const char* func_name, int arg_index, TipoVar tipo) {
 	int i_proc = ts_search(func_name);
+	if (i_proc == -1)
+		return;
 	int n_args = ts_get_num_args(i_proc);
 
 	// Check if we are in bounds. If not, error will be given by `ts_check_num_args`.
@@ -230,6 +242,8 @@ void ts_check_arg_type(const char* func_name, int arg_index, TipoVar tipo) {
 
 void ts_check_num_args(const char* func_name, int n_given_args) {
 	int i_proc = ts_search(func_name);
+	if (i_proc == -1)
+		return;
 	int n_args = ts_get_num_args(i_proc);
 	if (n_given_args != n_args) {
 		error_semantico("llamada a %s con %d argumentos, se esperaban %d",
@@ -276,6 +290,8 @@ static void ts_check_op_bin_operands(TipoVar tipo_var1, TipoVar tipo_var2, const
 }
 
 void ts_check_op_bin(TipoVar tipo_var1, TipoVar tipo_var2, TipoOpBinario tipo_op) {
+	if(tipo_var1 == Desconocido || tipo_var2 == Desconocido)
+		return;
 	if(tipo_var1 != tipo_var2)
 		error_semantico("Tipos de operandos en operador binario %s distintos: %s, %s",
 		    tipo_op_bin_to_str(tipo_op), tipo_var_to_str(tipo_var1), tipo_var_to_str(tipo_var2));
@@ -296,6 +312,8 @@ void ts_check_op_bin(TipoVar tipo_var1, TipoVar tipo_var2, TipoOpBinario tipo_op
 }
 
 void ts_check_menos_bin(TipoVar tipo1, TipoVar tipo2) {
+	if(tipo1 == Desconocido || tipo2 == Desconocido)
+		return;
 	ts_check_types(tipo1, tipo2, "Tipos de operandos en operador binario menos distintos");
 	ts_check_op_bin_operands(tipo1, tipo2, "Menos");
 }
@@ -305,27 +323,27 @@ static bool is_list_type(TipoVar tipo_lista) {
 }
 
 void ts_check_list_insert(TipoVar tipo_lista, TipoVar tipo_indice, TipoVar tipo_dato) {
-	if (!is_list_type(tipo_lista))
+	if (tipo_lista != Desconocido && !is_list_type(tipo_lista))
 		error_semantico("Tipo de identificador en inserción en lista erróneo: %s, se esperaba una lista", tipo_var_to_str(tipo_lista));
 
-	if(tipo_indice != Int)
+	if(tipo_indice != Desconocido && tipo_indice != Int)
 		error_semantico("Tipo de índice en inserción en lista erróneo: %s, se esperaba int", tipo_var_to_str(tipo_indice));
 
-	if(get_tipo_lista(tipo_dato) != tipo_lista)
+	if(tipo_dato != Desconocido && get_tipo_lista(tipo_dato) != tipo_lista)
 		error_semantico("Tipo de dato en inserción en lista erróneo: %s, se esperaba %s", tipo_var_to_str(tipo_dato), tipo_var_to_str(get_tipo_basico(tipo_lista)));
 }
 
 void ts_check_list_remove(TipoVar tipo_lista, TipoVar tipo_indice) {
-	if (!is_list_type(tipo_lista))
+	if (tipo_lista != Desconocido && !is_list_type(tipo_lista))
 		error_semantico("Tipo de identificador en remove en lista erróneo: %s, se esperaba una lista", tipo_var_to_str(tipo_lista));
-	if (tipo_indice != Int)
+	if (tipo_indice != Desconocido && tipo_indice != Int)
 		error_semantico("Tipo de índice en remove en lista erróneo: %s, se esperaba int", tipo_var_to_str(tipo_indice));
 }
 
 void ts_check_list_access(TipoVar tipo_lista, TipoVar tipo_indice) {
-	if (!is_list_type(tipo_lista))
+	if (tipo_lista != Desconocido && !is_list_type(tipo_lista))
 		error_semantico("Tipo de identificador en acceso a lista erróneo: %s, se esperaba una lista", tipo_var_to_str(tipo_lista));
-	if (tipo_indice != Int)
+	if (tipo_indice != Desconocido && tipo_indice != Int)
 		error_semantico("Tipo de índice en acceso a lista erróneo: %s, se esperaba int", tipo_var_to_str(tipo_indice));
 }
 
@@ -350,6 +368,7 @@ static const char* tipo_var_to_str(TipoVar tipo_var){
 		case Desconocido:
 			return "desconocido";
 		default:
+			printf("tipo_var: %d\n", tipo_var);
 			assert(false);
 	}
 }
