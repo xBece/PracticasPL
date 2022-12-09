@@ -21,7 +21,7 @@ ALFANUMERICO_   [a-zA-Z0-9_]
 DIGITO          [0-9]
 IDENTIFICADOR   {LETRA}{ALFANUMERICO_}*
 ENTERO          {DIGITO}+
-REAL            {ENTERO}+.{ENTERO}+
+REAL            {ENTERO}+\.{ENTERO}+
 
 %%
  /* Sección de reglas */
@@ -72,57 +72,57 @@ REAL            {ENTERO}+.{ENTERO}+
 
 "+" {
     yylval.tipo = Suma;
-    return OP_BINARIO;
+    return OP_BINARIO_SUM;
 }
 
 "/" {
     yylval.tipo = Div;
-    return OP_BINARIO;
+    return OP_BINARIO_PROD_DIV;
 }
 
 "*" {
     yylval.tipo = Mult;
-    return OP_BINARIO;
+    return OP_BINARIO_PROD_DIV;
 }
 
 ">" {
     yylval.tipo = Greater;
-    return OP_BINARIO;
+    return OP_BINARIO_REL;
 }
 
 "<" {
     yylval.tipo = Less;
-    return OP_BINARIO;
+    return OP_BINARIO_REL;
 }
 
 ">=" {
     yylval.tipo = GreaterEq;
-    return OP_BINARIO;
+    return OP_BINARIO_REL;
 }
 
 "<=" {
     yylval.tipo = LessEq;
-    return OP_BINARIO;
+    return OP_BINARIO_REL;
 }
 
 "!=" {
     yylval.tipo = NotEq;
-    return OP_BINARIO;
+    return OP_BINARIO_REL;
 }
 
 "==" {
     yylval.tipo = Eq;
-    return OP_BINARIO;
+    return OP_BINARIO_REL;
 }
 
 "and" {
     yylval.tipo = And;
-    return OP_BINARIO;
+    return OP_BINARIO_BOOL;
 }
 
 "or" {
     yylval.tipo = Or;
-    return OP_BINARIO;
+    return OP_BINARIO_BOOL;
 }
 
 

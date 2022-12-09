@@ -24,6 +24,11 @@ int current_declaring_type;
 
 bool inside_cabecera_proc;
 
+const char* inside_llamada_proc;
+int arg_idx;
+
+bool inside_list_declaration;
+
 %}
 
 %define parse.error verbose
@@ -42,7 +47,10 @@ bool inside_cabecera_proc;
 %token PYC
 %token INI_BLOQUE
 %token FIN_BLOQUE
-%token OP_BINARIO
+%token OP_BINARIO_REL
+%token OP_BINARIO_PROD_DIV
+%token OP_BINARIO_SUM
+%token OP_BINARIO_BOOL
 %token OP_UNARIO
 %token MENOS
 %token BOOL
@@ -67,9 +75,13 @@ bool inside_cabecera_proc;
 %token CARACTER
 %token ELSE
 
-%left OP_BINARIO
-%left MENOS
+// menor precedencia
+%left OP_BINARIO_BOOL
+%left OP_BINARIO_REL
+%left OP_BINARIO_SUM MENOS
+%left OP_BINARIO_PROD_DIV
 %left OP_UNARIO
+// mayor precedencia
 
 %start programa
 
@@ -123,8 +135,8 @@ sentencia                   : bloque
                             | error
                             ;
 
-sentencia_asignacion        : identificador IGUAL expresion
-                            | acceso_lista IGUAL expresion
+sentencia_asignacion        : identificador IGUAL expresion { ts_check_types($1.tipo, $3.tipo, "Tipos en operador de asignación erróneos"); }
+                            | acceso_lista IGUAL expresion { ts_check_types($1.tipo, $3.tipo, "Tipos en operador de asignación de listas erróneos"); }
                             ;
 
 sentencia_if                : IF PAR_IZQ expresion PAR_DER sentencia
@@ -141,30 +153,52 @@ sentencia_do_until          : DO PAR_IZQ sentencia PAR_DER UNTIL PAR_IZQ expresi
 
 sentencia_return            : RETURN;
 
-expresion                   : PAR_IZQ expresion PAR_DER
-                            | OP_UNARIO expresion
-                            | MENOS expresion
-                            | expresion OP_BINARIO expresion
-                            | expresion MENOS expresion
-                            | identificador
-                            | constante
-                            | acceso_lista
+expresion                   : PAR_IZQ expresion PAR_DER { $$.tipo = $2.tipo; }
+                            | OP_UNARIO expresion { ts_check_op_un($2.tipo, $1.tipo); $$.tipo = ($1.tipo == LengthOf ? Int : $2.tipo); }
+                            | MENOS expresion %prec OP_UNARIO { ts_check_menos_un($2.tipo); $$.tipo = $2.tipo; }
+                            | expresion OP_BINARIO_BOOL expresion { ts_check_op_bin($1.tipo, $3.tipo, $2.tipo); $$.tipo = $1.tipo; }
+                            | expresion OP_BINARIO_PROD_DIV expresion { ts_check_op_bin($1.tipo, $3.tipo, $2.tipo); $$.tipo = $1.tipo; }
+                            | expresion OP_BINARIO_REL expresion { ts_check_op_bin($1.tipo, $3.tipo, $2.tipo); $$.tipo = Bool; }
+                            | expresion OP_BINARIO_SUM expresion { ts_check_op_bin($1.tipo, $3.tipo, $2.tipo); $$.tipo = $1.tipo; }
+                            | expresion MENOS expresion { ts_check_menos_bin($1.tipo, $3.tipo); $$.tipo = $1.tipo; }
+                            | identificador { $$.tipo = $1.tipo; }
+                            | constante { $$.tipo = $1.tipo; }
+                            | acceso_lista { $$.tipo = $1.tipo; }
                             ;
 
-acceso_lista                : identificador COR_IZQ expresion COR_DER;
-sentencia_anadir_elemento   : INSERT PAR_IZQ identificador COMA expresion COMA expresion PAR_DER;
-sentencia_eliminar_elemento : REMOVE PAR_IZQ identificador COMA expresion PAR_DER;
-sentencia_llamada_proc      : identificador PAR_IZQ lista_expresiones PAR_DER
+acceso_lista                : identificador COR_IZQ expresion COR_DER { ts_check_list_access($1.tipo, $3.tipo); $$.tipo = get_tipo_basico($1.tipo); };
+sentencia_anadir_elemento   : INSERT PAR_IZQ identificador COMA expresion COMA expresion PAR_DER { ts_check_list_insert($3.tipo, $5.tipo, $7.tipo); } ;
+sentencia_eliminar_elemento : REMOVE PAR_IZQ identificador COMA expresion PAR_DER { ts_check_list_remove($3.tipo, $5.tipo); };
+sentencia_llamada_proc      : identificador PAR_IZQ
+                              { inside_llamada_proc = $1.lex; arg_idx = 0; }
+                              lista_expresiones
+                              { ts_check_num_args(inside_llamada_proc, arg_idx); inside_llamada_proc = NULL; arg_idx = -1; }
+                              PAR_DER
                             ;
 lista_expresiones_o_cadena  : lista_expresiones_o_cadena COMA expresion
                             | lista_expresiones_o_cadena COMA CADENA
                             | CADENA
                             | expresion
                             ;
-lista_expresiones           : lista_expresiones COMA expresion
-                            | expresion
+lista_expresiones           : lista_expresiones COMA expresion_ 
+                              { 
+                              if(inside_list_declaration) {
+                                if (!ts_check_types($1.tipo, $3.tipo, "Tipos de constantes de lista erróneos") && $1.tipo != Desconocido )
+                                  $$.tipo = Desconocido;
+                                else
+                                  $$.tipo = $1.tipo; 
+                              }
+                              }
+                            | expresion_ { $$.tipo = $1.tipo; }
                             |
                             ;
+expresion_                  : expresion {
+                              if (inside_llamada_proc) {
+                                ts_check_arg_type(inside_llamada_proc, arg_idx, $1.tipo);
+                                arg_idx++;
+                              }
+                            };
+
 lista_variables             : identificador COMA lista_variables
                             | identificador
                             ;
@@ -175,8 +209,10 @@ identificador               : IDENTIFICADOR
                                 $$.lex = $1.lex;
                                 if (inside_dec_var)
                                   ts_insert_var($1.lex, current_declaring_type);
-                                else if (!inside_cabecera_proc)
+                                else if (!inside_cabecera_proc){
                                   ts_check($1.lex);
+                                  $$.tipo = ts_get_var_type($1.lex);
+                                }
                               };
 lista_parametros            : parametro COMA lista_parametros {ts_insert_param($1.lex, $1.tipo);}
                             | parametro {ts_insert_param($1.lex, $1.tipo);}
@@ -190,14 +226,16 @@ parametro                   : MUT tipo identificador {$$.lex = $3.lex; $$.tipo =
 tipo                        : TIPO_BASICO { $$.tipo = $1.tipo; }
                             | LIST TIPO_BASICO { $$.tipo = get_tipo_lista($2.tipo); }
                             ;
-constante                   : ENTERO
-                            | REAL
-                            | CARACTER
-                            | BOOL
-                            | lista
+constante                   : ENTERO { $$.tipo = Int; }
+                            | REAL { $$.tipo = Float; }
+                            | CARACTER { $$.tipo = Char; }
+                            | BOOL { $$.tipo = Bool; }
+                            | lista { $$.tipo = $1.tipo; }
                             ;
 
-lista                       : COR_IZQ lista_expresiones COR_DER;
+lista                       : COR_IZQ { inside_list_declaration = true; }
+                              lista_expresiones COR_DER
+                              { inside_list_declaration = false; $$.tipo = get_tipo_lista($3.tipo); };
 
 
 

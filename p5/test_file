@@ -81,8 +81,8 @@ main {
 		if (pe[0] == 20 or pe[1] == 2*pe[0]) {
 			ve= pe[#pe - 1];
 			remove(pe, #pe - 1);
-			pe= pe * pe2 ;
-			pe= pe2 - #pe * (20/2000) ;
+			pe[0] = pe[0] * pe2[0] ;
+			pe[0] = pe2[0] - #pe * 20/2000 ;
 		} 
 	}
 }
