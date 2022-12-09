@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include "semantico.h"
+#include "code_gen.h"
 
 /** La siguiente declaracion permite que 'yyerror' se pueda invocar desde el
 *** fuente de lex (prueba.l)
@@ -87,7 +88,7 @@ bool inside_list_declaration;
 
 %%
 // PRODUCCIONES
-programa                    : INICIO bloque;
+programa                    : { gen_start(); } INICIO bloque { gen_end(); };
 bloque                      : inicio_de_bloque 
                               declar_variables_locales
                               declar_de_subprogs
@@ -121,7 +122,8 @@ cabecera_subprograma        : PROC { inside_cabecera_proc = true; }
 sentencias                  : sentencias sentencia
                             |
                             ;
-sentencia                   : bloque
+sentencia                   : { gen_start_sentencia(); } sentencia_ { gen_end_sentencia(); };
+sentencia_                  : bloque
                             | sentencia_asignacion PYC
                             | sentencia_if
                             | sentencia_while
@@ -135,7 +137,12 @@ sentencia                   : bloque
                             | error
                             ;
 
-sentencia_asignacion        : identificador IGUAL expresion { ts_check_types($1.tipo, $3.tipo, "Tipos en operador de asignación erróneos"); }
+sentencia_asignacion        : identificador IGUAL expresion {
+                                ts_check_types($1.tipo, $3.tipo, "Tipos en operador de asignación erróneos"); 
+                                if ($3.lugar != NULL) // TODO: quitar esto cuando este hecho todo para las expresiones
+                                  gen_add_code("%s = %s;\n", $1.lugar, $3.lugar);
+
+                            }
                             | acceso_lista IGUAL expresion { ts_check_types($1.tipo, $3.tipo, "Tipos en operador de asignación de listas erróneos"); }
                             ;
 
@@ -159,7 +166,10 @@ expresion                   : PAR_IZQ expresion PAR_DER { $$.tipo = $2.tipo; }
                             | expresion OP_BINARIO_BOOL expresion { ts_check_op_bin($1.tipo, $3.tipo, $2.tipo); $$.tipo = $1.tipo; }
                             | expresion OP_BINARIO_PROD_DIV expresion { ts_check_op_bin($1.tipo, $3.tipo, $2.tipo); $$.tipo = $1.tipo; }
                             | expresion OP_BINARIO_REL expresion { ts_check_op_bin($1.tipo, $3.tipo, $2.tipo); $$.tipo = Bool; }
-                            | expresion OP_BINARIO_SUM expresion { ts_check_op_bin($1.tipo, $3.tipo, $2.tipo); $$.tipo = $1.tipo; }
+                            | expresion OP_BINARIO_SUM expresion { ts_check_op_bin($1.tipo, $3.tipo, $2.tipo); $$.tipo = $1.tipo; 
+                                $$.lugar = gen_new_temp($$.tipo);
+                                gen_add_code("%s = %s + %s;\n", $$.lugar, $1.lugar, $3.lugar);
+                            }
                             | expresion MENOS expresion { ts_check_menos_bin($1.tipo, $3.tipo); $$.tipo = $1.tipo; }
                             | identificador { $$.tipo = $1.tipo; }
                             | constante { $$.tipo = $1.tipo; }
@@ -207,9 +217,11 @@ identificador               : IDENTIFICADOR
   // lexema, tipo o ambos.
                               {
                                 $$.lex = $1.lex;
-                                if (inside_dec_var)
+                                $$.lugar = $1.lex;
+                                if (inside_dec_var) {
                                   ts_insert_var($1.lex, current_declaring_type);
-                                else if (!inside_cabecera_proc){
+                                  gen_new_var($1.lex, current_declaring_type);
+                                } else if (!inside_cabecera_proc){
                                   ts_check($1.lex);
                                   $$.tipo = ts_get_var_type($1.lex);
                                 }
@@ -226,7 +238,7 @@ parametro                   : MUT tipo identificador {$$.lex = $3.lex; $$.tipo =
 tipo                        : TIPO_BASICO { $$.tipo = $1.tipo; }
                             | LIST TIPO_BASICO { $$.tipo = get_tipo_lista($2.tipo); }
                             ;
-constante                   : ENTERO { $$.tipo = Int; }
+constante                   : ENTERO { $$.tipo = Int; $$.lugar = $$.lex; }
                             | REAL { $$.tipo = Float; }
                             | CARACTER { $$.tipo = Char; }
                             | BOOL { $$.tipo = Bool; }

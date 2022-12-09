@@ -194,6 +194,7 @@ REAL            {ENTERO}+\.{ENTERO}+
 
 "int" {
     yylval.tipo = Int;
+    yylval.lex = strdup(yytext);
     return TIPO_BASICO;
 }
 

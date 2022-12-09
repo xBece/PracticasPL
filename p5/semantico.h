@@ -1,6 +1,8 @@
 #ifndef _SEMANTICO_H
 #define _SEMANTICO_H
 
+#include <stdbool.h>
+
 typedef enum {
 	Suma,
 	Div,
@@ -40,12 +42,10 @@ typedef enum {
 int get_tipo_lista(TipoVar tipo_basico);
 int get_tipo_basico(TipoVar tipo_lista);
 
-// Idea: añadir valor para enteros, reales, etc, si fuera necesario en el futuro
-// en vez de guardar el lexema.
-// TODO: arreglar esta verga. (struct y punto, sin union) UNA POLLA, YA VEREMOS.
 typedef struct {
-	char* lex;
+	const char* lex;
 	int tipo;
+	const char* lugar; // code_gen
 } TokenAttrs;
 
 #define YYSTYPE TokenAttrs
