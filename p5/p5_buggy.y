@@ -9,7 +9,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
-#include <assert.h>
 #include "semantico.h"
 #include "code_gen.h"
 
@@ -23,7 +22,6 @@ int yylex();
 
 bool inside_dec_var;
 int current_declaring_type;
-int num_expr;
 
 bool inside_cabecera_proc;
 
@@ -117,8 +115,8 @@ cuerpo_declar_variables     : tipo { current_declaring_type = $1.tipo;} lista_va
                             | error
                             ;
 cabecera_subprograma        : PROC { inside_cabecera_proc = true; }
-                              identificador { ts_insert_func($3.lex); gen_add_code("void %s(", $3.lugar); }
-                              PAR_IZQ lista_parametros PAR_DER { gen_add_code_no_indent(")\n");}
+                              identificador { ts_insert_func($3.lex); gen_add_code("void %s("); }
+                              PAR_IZQ lista_parametros PAR_DER { gen_add_}
                               { inside_cabecera_proc = false; }
                             ;
 sentencias                  : sentencias sentencia
@@ -141,12 +139,12 @@ sentencia_                  : bloque
 
 sentencia_asignacion        : identificador IGUAL expresion {
                                 ts_check_types($1.tipo, $3.tipo, "Tipos en operador de asignación erróneos"); 
-                                gen_add_code("%s = %s;\n\n", $1.lugar, $3.lugar);
+                                if ($3.lugar != NULL) // TODO: quitar esto cuando este hecho todo para las expresiones
+                                  gen_add_code("%s = %s;\n\n", $1.lugar, $3.lugar);
+
                             }
-                            | acceso_lista IGUAL expresion { 
-                                ts_check_types($1.tipo, $3.tipo, "Tipos en operador de asignación de listas erróneos"); 
-                                gen_add_code("%s = %s;\n\n", $1.lugar, $3.lugar);
-                            };
+                            | acceso_lista IGUAL expresion { ts_check_types($1.tipo, $3.tipo, "Tipos en operador de asignación de listas erróneos"); }
+                            ;
 
 if_primera_parte            : IF PAR_IZQ expresion PAR_DER
                               {
@@ -154,15 +152,14 @@ if_primera_parte            : IF PAR_IZQ expresion PAR_DER
                                 $$.etiq2 = gen_new_etiqueta();
                                 gen_add_code("if (!%s) goto %s; // if\n", $3.lugar, $$.etiq1);
                               }
+                              sentencia
                             ;
 
 sentencia_if                : if_primera_parte
-                              sentencia
                               {
                                 gen_add_code("%s:\n", $1.etiq1);
                               }
                             | if_primera_parte
-                              sentencia
                               ELSE
                               {
                                 gen_add_code("goto %s;\n", $1.etiq2);
@@ -170,59 +167,55 @@ sentencia_if                : if_primera_parte
                               }
                               sentencia
                               {
-                                gen_add_code("%s:\n", $1.etiq2);
+                                gen_add_code("%s:", $1.etiq2);
                               }
                             ;
 
-sentencia_while             : WHILE
+sentencia_while             : WHILE PAR_IZQ expresion PAR_DER 
                               {
-                                $1.etiq1 = gen_new_etiqueta(); // comienzo
-                                $1.etiq2 = gen_new_etiqueta(); // después
-                                gen_add_code("%s: // while\n", $1.etiq1);
-                              }
-                              PAR_IZQ expresion PAR_DER
-                              {
-                                gen_add_code("if (!%s) goto %s; // while\n\n", $4.lugar, $1.etiq2);
+                                $$.etiq1 = gen_new_etiqueta(); // comienzo
+                                $$.etiq2 = gen_new_etiqueta(); // después
+                                gen_add_code("%s:", $$.etiq1);
+                                gen_add_code("if (!%s) goto %s; // while\n", $3.lugar, $$.etiq2);
                               }
                               sentencia
                               {
-                                gen_add_code("goto %s;\n\n", $1.etiq1);
-                                gen_add_code("%s:\n\n", $1.etiq2);
+                                gen_add_code("goto %s:\n", $$.etiq1);
+                                gen_add_code("%s:", $$.etiq2);
                               }
                             ;
 
-sentencia_entrada           : READ lista_variables
+sentencia_entrada           : READ 
                               {
-                                gen_add_code("scanf(\"%s\", %s);\n\n",$2.lex, $2.lugar);
+                                gen_add_code("scanf(\"");
+                              } 
+                              lista_variables
+                              {
                               };
 
 sentencia_salida            : PRINT lista_expresiones_o_cadena {
-                                gen_add_code("printf(\"%s\\n\", %s);\n\n",$2.lex, $2.lugar);
+                                gen_add_code("printf(\"%s\", %s);\n\n",$2.lex, $2.lugar);
                             }; 
 
 sentencia_do_until          : DO PAR_IZQ 
                               {
-                                $1.etiq1 = gen_new_etiqueta(); // comienzo
-                                gen_add_code("%s: // do until\n", $1.etiq1);
+                                $$.etiq1 = gen_new_etiqueta(); // comienzo
+                                gen_add_code("%s:", $$.etiq1);
                               }
                               sentencia PAR_DER UNTIL PAR_IZQ expresion PAR_DER
                               {
-                                gen_add_code("if (!%s) goto %s; // do until\n\n", $8.lugar, $1.etiq1);
+                                gen_add_code("if (!%s) goto %s;\n", $8.lugar, $$.etiq1);
                               };
 
 sentencia_return            : RETURN;
 
 expresion                   : PAR_IZQ expresion PAR_DER { $$.tipo = $2.tipo;
-                                $$.lugar = $2.lugar;
+                                $$.lugar = $1.lugar;
                             }
                             | OP_UNARIO expresion {
                                 ts_check_op_un($2.tipo, $1.tipo); $$.tipo = ($1.tipo == LengthOf ? Int : $2.tipo);
                                 $$.lugar = gen_new_temp($$.tipo);
-                                if ($1.tipo == Not)
-                                  gen_add_code("%s = !%s;\n\n", $$.lugar, $2.lugar);
-                                else if ($1.tipo == LengthOf)
-                                  gen_add_code("%s = list_length(&%s);\n\n", $$.lugar, $2.lugar);
-                                else assert(false);
+                                gen_add_code("%s = %s%s;\n\n", $$.lugar, op_unario_to_symbol($2.tipo), $2.lugar);
                             }
                             | MENOS expresion %prec OP_UNARIO {
                                 ts_check_menos_un($2.tipo); $$.tipo = $2.tipo;
@@ -261,89 +254,69 @@ expresion                   : PAR_IZQ expresion PAR_DER { $$.tipo = $2.tipo;
 
 acceso_lista                : identificador COR_IZQ expresion COR_DER {
                                 ts_check_list_access($1.tipo, $3.tipo); $$.tipo = get_tipo_basico($1.tipo);
-                                $$.lugar = string_add_fmt("", "list_at(&%s, %s, %s)", $1.lugar, $3.lugar, tipo_var_to_str($$.tipo));
+                                $$.lugar = gen_new_temp($$.tipo);
+                                gen_add_code("%s = list_at(&%s, %s, %s)\n\n", $$.lugar, $1.lugar, $3.lugar, tipo_var_to_str($$.tipo));
                             };
 sentencia_anadir_elemento   : INSERT PAR_IZQ identificador COMA expresion COMA expresion PAR_DER {
                                 ts_check_list_insert($3.tipo, $5.tipo, $7.tipo); 
-                                gen_add_code("list_insert(&%s, %s, (int[]){%s});\n\n", $3.lugar, $5.lugar, $7.lugar);
+                                gen_add_code("list_insert(&%s, %s, (int[]){%s})\n\n", $3.lugar, $5.lugar, $7.lugar);
                             };
 sentencia_eliminar_elemento : REMOVE PAR_IZQ identificador COMA expresion PAR_DER { ts_check_list_remove($3.tipo, $5.tipo); 
-                                gen_add_code("list_remove(&%s, %s);\n\n", $3.lugar, $5.lugar);
+                                gen_add_code("list_insert(&%s, %s)\n\n", $3.lugar, $5.lugar);
                             };
 sentencia_llamada_proc      : identificador PAR_IZQ
                               { inside_llamada_proc = $1.lex; arg_idx = 0; }
                               lista_expresiones
-                              { ts_check_num_args(inside_llamada_proc, arg_idx); 
-                                inside_llamada_proc = NULL; arg_idx = -1; 
-                                gen_add_code("%s(%s);\n\n", $1.lugar, $4.lugar); }
+                              { ts_check_num_args(inside_llamada_proc, arg_idx); inside_llamada_proc = NULL; arg_idx = -1; }
                               PAR_DER
                             ;
 lista_expresiones_o_cadena  : lista_expresiones_o_cadena COMA expresion { 
                                 // HACK by pabloco1: usar lugar para los argumentos a printf, y
                                 // lex para el formato. Klecko: se ha desmayado.
                                 $$.lugar = string_add(string_add($1.lugar, ", "), $3.lugar); 
-                                $$.lex = string_add($1.lex, string_add(" ", tipo_var_to_format($3.tipo))); 
+                                $$.lex = string_add($1.lex, string_add(tipo_var_to_format($1.tipo), ", ")); 
                             }
                             | lista_expresiones_o_cadena COMA CADENA { 
                                 $$.lugar = string_add(string_add($1.lugar, ", "), $3.lex); 
-                                $$.lex = string_add($1.lex, "%s"); 
+                                $$.lex = string_add($1.lex, "%%s, "); 
                             }
                             | CADENA { 
-                                $$.lugar = $1.lex;
-                                $$.lex = "%s";
+                                $$.lugar = $1.lex; 
+                                $$.lex = "%%s, "; 
                             }
                             | expresion { 
-                                $$.lugar = $1.lugar;
-                                $$.lex = tipo_var_to_format($1.tipo);
+                                $$.lugar = $1.lugar; 
+                                $$.lex = string_add(tipo_var_to_format($1.tipo), ", "); 
                             }
                             ;
 lista_expresiones           : lista_expresiones COMA expresion_ 
                               { 
-                                if(inside_list_declaration) {
-                                  if (!ts_check_types($1.tipo, $3.tipo, "Tipos de constantes de lista erróneos") && $1.tipo != Desconocido )
-                                    $$.tipo = Desconocido;
-                                  else
-                                    $$.tipo = $1.tipo; 
-                                }
-                                $$.lugar = string_add(string_add($1.lugar, ", "), $3.lugar);
-                                num_expr++;
+                              if(inside_list_declaration) {
+                                if (!ts_check_types($1.tipo, $3.tipo, "Tipos de constantes de lista erróneos") && $1.tipo != Desconocido )
+                                  $$.tipo = Desconocido;
+                                else
+                                  $$.tipo = $1.tipo; 
                               }
-                            | expresion_ { $$.tipo = $1.tipo; $$.lugar = $1.lugar; num_expr = 1; }
+                              }
+                            | expresion_ { $$.tipo = $1.tipo; }
                             |
                             ;
 expresion_                  : expresion {
                               if (inside_llamada_proc) {
                                 ts_check_arg_type(inside_llamada_proc, arg_idx, $1.tipo);
-                                if (ts_is_mut_param_idx(inside_llamada_proc, arg_idx)) {
-                                  ts_check_is_var($1.lugar, inside_llamada_proc, arg_idx);
-                                  $$.lugar = string_add("&", $1.lugar);
-                                } else
-                                  $$.lugar = $1.lugar;
                                 arg_idx++;
                               }
-                              else
-                                $$.lugar = $1.lugar;
                             };
 
-lista_variables             : lista_variables COMA identificador
-                            {
-                                // HACK by pabloco1: usar lugar para los argumentos a printf, y
-                                // lex para el formato. Klecko: se ha desmayado.
-                                $$.lugar = string_add(string_add($1.lugar, ", &"), $3.lugar); 
-                                $$.lex = string_add($1.lex, string_add(" ", tipo_var_to_format($3.tipo))); 
-                            }
+lista_variables             : identificador COMA lista_variables
                             | identificador
-                            {
-                                $$.lugar = string_add("&", $1.lugar);
-                                $$.lex = tipo_var_to_format($1.tipo);
-                            }
                             ;
 identificador               : IDENTIFICADOR
   // NOTAS: no sabemos muy bien si al identificador de la izqd le tenemos que asignar
   // lexema, tipo o ambos.
                               {
                                 $$.lex = $1.lex;
-                                $$.lugar = ts_is_mut_param($1.lex) ? string_add("*",$1.lex) : $1.lex;
+                                $$.lugar = $1.lex;
                                 if (inside_dec_var) {
                                   ts_insert_var($1.lex, current_declaring_type);
                                   gen_new_var($1.lex, current_declaring_type);
@@ -352,16 +325,14 @@ identificador               : IDENTIFICADOR
                                   $$.tipo = ts_get_var_type($1.lex);
                                 }
                               };
-lista_parametros            : parametro COMA { gen_add_code_no_indent(", "); } lista_parametros
-                            | parametro
+lista_parametros            : parametro COMA lista_parametros {ts_insert_param($1.lex, $1.tipo);}
+                            | parametro {ts_insert_param($1.lex, $1.tipo);}
                             | error
                             |
                             ;
 
-parametro                   : MUT tipo identificador { ts_insert_param($3.lex, $3.tipo, true); 
-                                gen_add_code_no_indent("%s* %s", tipo_var_to_str($2.tipo), $3.lugar); }
-                            | tipo identificador { ts_insert_param($2.lex, $2.tipo, false); 
-                                gen_add_code_no_indent("%s %s", tipo_var_to_str($1.tipo), $2.lugar); }
+parametro                   : MUT tipo identificador {$$.lex = $3.lex; $$.tipo = $2.tipo;}
+                            | tipo identificador {$$.lex = $2.lex; $$.tipo = $1.tipo;}
                             ;
 tipo                        : TIPO_BASICO { $$.tipo = $1.tipo; }
                             | LIST TIPO_BASICO { $$.tipo = get_tipo_lista($2.tipo); }
@@ -369,21 +340,13 @@ tipo                        : TIPO_BASICO { $$.tipo = $1.tipo; }
 constante                   : ENTERO { $$.tipo = Int; $$.lugar = $1.lex; }
                             | REAL { $$.tipo = Float; $$.lugar = $1.lex; }
                             | CARACTER { $$.tipo = Char; $$.lugar = $1.lex; }
-                            | BOOL { $$.tipo = Bool; $$.lugar = tipo_bool_to_str($1.tipo); }
-                            | lista { $$.tipo = $1.tipo; $$.lugar = $1.lugar; }
+                            | BOOL { $$.tipo = Bool; $$.lugar = $1.lex; }
+                            | lista { $$.tipo = $1.tipo; $$.lugar = $1.lex; }
                             ;
 
-lista                       : COR_IZQ
-                              {
-                                inside_list_declaration = true;
-                              }
-                              lista_expresiones
-                              COR_DER
-                              {
-                                inside_list_declaration = false;
-                                $$.tipo = get_tipo_lista($3.tipo);
-                                $$.lugar = string_add_fmt("", "list_create((int[]){%s}, %d, sizeof(%s))", $3.lugar, num_expr, tipo_var_to_str($3.tipo));
-                              }
+lista                       : COR_IZQ { inside_list_declaration = true; }
+                              lista_expresiones COR_DER
+                              { inside_list_declaration = false; $$.tipo = get_tipo_lista($3.tipo); };
 
 
 

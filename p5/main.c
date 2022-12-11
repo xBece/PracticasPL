@@ -13,11 +13,11 @@ FILE *abrir_entrada(int argc, char *argv[]) {
             fprintf(stderr, "fichero '%s' no encontrado\n", argv[1]);
             exit(1);
         }
-        else
-            printf("leyendo fichero '%s'.\n", argv[1]);
+        // else
+        //     printf("leyendo fichero '%s'.\n", argv[1]);
     }
-    else
-        printf("leyendo entrada estándar.\n");
+    // else
+    //     printf("leyendo entrada estándar.\n");
     return f;
 }
 

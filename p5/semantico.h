@@ -41,11 +41,14 @@ typedef enum {
 
 int get_tipo_lista(TipoVar tipo_basico);
 int get_tipo_basico(TipoVar tipo_lista);
+bool is_list_type(TipoVar tipo_lista);
 
 typedef struct {
 	const char* lex;
 	int tipo;
 	const char* lugar; // code_gen
+	const char* etiq1;
+	const char* etiq2;
 } TokenAttrs;
 
 #define YYSTYPE TokenAttrs
@@ -54,7 +57,7 @@ void ts_insert_var(const char* lex, TipoVar tipo);
 
 void ts_insert_func(const char* lex);
 
-void ts_insert_param(const char* lex, TipoVar tipo);
+void ts_insert_param(const char* lex, TipoVar tipo, bool param_mut);
 
 void ts_insert_mark(void);
 
@@ -66,7 +69,13 @@ bool ts_check_types(TipoVar tipo1, TipoVar tipo2, const char* msg);
 
 void ts_check_arg_type(const char* func_name, int arg_index, TipoVar tipo);
 
+bool ts_is_mut_param_idx(const char* func_name, int arg_index);
+
 bool ts_is_var(const char* var_name);
+
+bool ts_is_mut_param(const char* param_name);
+
+void ts_check_is_var(const char* var_name, const char* func_name, int arg_idx);
 
 TipoVar ts_get_var_type(const char* var_name);
 

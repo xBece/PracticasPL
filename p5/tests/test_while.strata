@@ -1,0 +1,13 @@
+main {
+	var
+		int i;
+	endvar
+
+	i = 0;
+	do ({
+		print i;
+		i = i + 1;
+	}) until (i == 10);
+
+	print "fin";
+}

@@ -1,0 +1,61 @@
+main
+{
+    var
+        int n;
+        int curr;
+        int ultim ;
+        int cuenta ;
+        int primero ;
+        int d;
+    endvar
+
+    curr = 2;
+    ultim = 0;
+    cuenta = 0;
+    primero = 1;
+    
+    print "introduce numero : ";
+    read n;
+    print n, " == ";
+    curr = 2 ;
+    while( curr <= n )
+    {
+        d = n/curr ;
+        if (d*curr == n)
+        {
+            if ( curr != ultim )
+            {
+                ultim = curr ;
+                cuenta = 1 ;
+            }
+            else 
+                cuenta = cuenta + 1 ;
+            n = n/curr ;
+        }
+        else
+        {
+            if ( cuenta > 0 )
+            {
+                if ( primero == 0 ) 
+                    print " *";
+                primero = 0 ;
+                print " ", curr;
+                if ( cuenta > 1 ) 
+                    print " ", cuenta;
+            }
+            curr = curr+1 ;
+            cuenta = 0 ;
+        }
+    }
+    if ( cuenta > 0 )
+    {
+        if ( primero == 0 ) 
+            print " *";
+        primero = 0 ;
+        print " ", curr;
+        if ( cuenta > 1 ) 
+            print " ", cuenta;
+    }
+    print "\n";
+
+}

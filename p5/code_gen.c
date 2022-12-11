@@ -13,27 +13,76 @@
 size_t g_curr_indent_level = 0;
 char* g_all_code;
 
-static void string_add(char** s, const char* add) {
+// Crea una nueva cadena con la concatenacion de `s` y `add`.
+char* string_add(const char* s, const char* add) {
 	size_t add_len = strlen(add);
-	if (add_len == 0)
-		return;
+	assert(add_len);
+	size_t curr_len = (s ? strlen(s) : 0);
+	size_t new_len = curr_len + add_len + 1;
+	char* result = malloc(new_len);
+	if (s)
+		strcpy(result, s);
+	strcat(result, add);
+	return result;
+}
 
-	size_t curr_len = (*s ? strlen(*s) : 0);
-	*s = realloc(*s, curr_len + add_len + 1);
-	strcat(*s, add);
+char* string_add_fmt(const char* s, const char* format, ...) {
+	char* add;
+	va_list arg_list;
+	va_start(arg_list, format);
+	int ret = vasprintf(&add, format, arg_list);
+	va_end(arg_list);
+	assert(ret != -1);
+
+	char* result = string_add(s, add);
+	free(add);
+	return result;
+}
+
+// Añade a `s` la cadena `add`
+void string_add_in_place(char** s, const char* add) {
+	char* prev_s = *s;
+	*s = string_add(*s, add);
+	free(prev_s);
 }
 
 void gen_start(void) {
-	gen_add_code("int main() {");
+	gen_add_code(
+		"#include <stdio.h>\n"
+		"#include <stdbool.h>\n"
+		"#include \"listas.c\"\n\n"
+		"int main() {\n"
+	);
 	g_curr_indent_level += 1;
 }
 
 void gen_end(void) {
 	assert(g_curr_indent_level == 1);
 	g_curr_indent_level -= 1;
-	gen_add_code("}");
+	gen_add_code("}\n");
 	printf("%s\n", g_all_code);
 	// TODO: guardar archivo
+}
+
+static void gen_add_code_aux(const char* format, va_list arg_list) {
+	// Parse format string to get code
+	char* code;
+	int ret = vasprintf(&code, format, arg_list);
+	assert(ret != -1);
+
+	// Add code
+	string_add_in_place(&g_all_code, code);
+
+	// Free resources
+	free(code);
+}
+
+// Añade el código dado a la variable global `g_all_code` sin indentación.
+void gen_add_code_no_indent(const char* format, ...) {
+	va_list arg_list;
+	va_start(arg_list, format);
+	gen_add_code_aux(format, arg_list);
+	va_end(arg_list);
 }
 
 // Añade el código dado a la variable global `g_all_code`.
@@ -44,26 +93,16 @@ void gen_add_code(const char* format, ...) {
 		char indent[indent_size + 1];
 		memset(indent, ' ', indent_size);
 		indent[indent_size] = 0;
-		string_add(&g_all_code, indent);
+		string_add_in_place(&g_all_code, indent);
 	}
 
-	// Parse format string to get code
-	char* code;
 	va_list arg_list;
 	va_start(arg_list, format);
-	int ret = vasprintf(&code, format, arg_list);
-	assert(ret != -1);
-
-	// Add code
-	string_add(&g_all_code, code);
-	string_add(&g_all_code, "\n");
-
-	// Free resources
+	gen_add_code_aux(format, arg_list);
 	va_end(arg_list);
-	free(code);
 }
 
-static const char* tipo_var_to_str(TipoVar tipo_var) {
+const char* tipo_var_to_str(TipoVar tipo_var) {
 	switch (tipo_var) {
 		case Int:
 			return "int";
@@ -73,6 +112,68 @@ static const char* tipo_var_to_str(TipoVar tipo_var) {
 			return "float";
 		case Char:
 			return "char";
+		case ListBool:
+		case ListChar:
+		case ListFloat:
+		case ListInt:
+			return "List";
+		case Desconocido:
+			return "DESCONOCIDO";
+		default:
+			assert(false);
+	}
+}
+
+const char* tipo_bool_to_str(TipoBool tipo_bool) {
+	switch (tipo_bool) {
+		case True:
+			return "true";
+		case False:
+			return "false";
+		default:
+			assert(false);
+	}
+};
+
+const char* tipo_var_to_format(TipoVar tipo_var) {
+	switch (tipo_var) {
+		case Int:
+			return "%d";
+		case Bool:
+			return "%d";
+		case Float:
+			return "%f";
+		case Char:
+			return "%c";
+		default:
+			assert(false);
+	}
+}
+
+const char* op_binario_to_symbol(TipoOpBinario tipo_op) {
+	switch (tipo_op) {
+		case Suma:
+			return "+";
+		case Div:
+			return "/";
+		case Mult:
+			return "*";
+		case Greater:
+			return ">";
+		case Less:
+			return "<";
+		case GreaterEq:
+			return ">=";
+		case LessEq:
+			return "<=";
+		case NotEq:
+			return "!=";
+		case Eq:
+			return "==";
+		case And:
+			return "&&";
+		case Or:
+			return "||";
 		default:
 			assert(false);
 	}
@@ -89,7 +190,7 @@ const char* gen_new_temp(TipoVar tipo) {
 	int ret = asprintf(&result, "temp%d", temp);
 	assert(ret != -1);
 
-	gen_add_code("%s %s;", tipo_var_to_str(tipo), result);
+	gen_new_var(result, tipo);
 
 	return result;
 }
@@ -107,15 +208,19 @@ const char* gen_new_etiqueta(void) {
 }
 
 void gen_start_sentencia(void) {
-	gen_add_code("{");
+	gen_add_code("{\n");
 	g_curr_indent_level += 1;
 }
 
 void gen_end_sentencia(void) {
 	g_curr_indent_level -= 1;
-	gen_add_code("}");
+	gen_add_code("}\n");
 }
 
 void gen_new_var(const char* name, TipoVar tipo) {
-	gen_add_code("%s %s;", tipo_var_to_str(tipo), name);
+	if (is_list_type(tipo))
+		gen_add_code("%s %s = list_create(NULL, 0, sizeof(%s));\n",
+		             tipo_var_to_str(tipo), name, tipo_var_to_str(get_tipo_basico(tipo)));
+	else
+		gen_add_code("%s %s;\n", tipo_var_to_str(tipo), name);
 }

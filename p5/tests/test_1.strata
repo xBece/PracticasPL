@@ -1,0 +1,25 @@
+
+main {
+    var
+        int n;
+        int curr ;
+        int d ;
+    endvar
+
+    print "introduce numero : ";
+    read n;
+    print n, " == ";
+    curr = 2 ;
+    while( curr <= n )
+    {
+        d = n/curr ;
+        if ( d*curr == n )
+        {
+            print "* ", curr, " ";
+            n = n/curr ;
+        }
+        else
+            curr = curr+1 ;
+    }
+    print "\n";
+}

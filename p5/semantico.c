@@ -26,12 +26,11 @@ typedef struct {
 	const char* name;
 	TipoSimbolo tipo;
 	TipoVar tipo_var;
+	bool mut;
 } Symbol;
 
 static Symbol ts[MAX_SYMBOLS];
 static int ts_size = 0;
-
-static bool is_list_type(TipoVar tipo_lista);
 
 int get_tipo_lista(TipoVar tipo_basico) {
 	if (tipo_basico == Desconocido)
@@ -150,7 +149,7 @@ void ts_insert_func(const char* lex) {
 	ts_insert(symbol);
 }
 
-void ts_insert_param(const char* lex, TipoVar tipo_var) {
+void ts_insert_param(const char* lex, TipoVar tipo_var, bool param_mut) {
 	if (ts_search_param(lex) != -1) {
 		error_semantico("ya existe el parámetro %s", lex);
 		return;
@@ -158,7 +157,8 @@ void ts_insert_param(const char* lex, TipoVar tipo_var) {
 	Symbol symbol = {
 		.name = lex,
 		.tipo = Param,
-		.tipo_var = tipo_var
+		.tipo_var = tipo_var,
+		.mut = param_mut
 	};
 	// printf("insertando parametro %s de tipo %s\n", lex, tipo_var_to_str(tipo_var));
 	ts_insert(symbol);
@@ -219,25 +219,52 @@ static int ts_get_num_args(int i_proc) {
 	return n_args;
 }
 
-void ts_check_arg_type(const char* func_name, int arg_index, TipoVar tipo) {
+static int ts_get_arg_idx(const char* func_name, int arg_index) {
+	// Get function
 	int i_proc = ts_search(func_name);
 	if (i_proc == -1)
-		return;
+		return -1;
 	int n_args = ts_get_num_args(i_proc);
 
 	// Check if we are in bounds. If not, error will be given by `ts_check_num_args`.
 	if (arg_index >= n_args) {
-		return;
+		return -1;
 	}
 
-	// Get argument and check its type
-	assert(i_proc + n_args - arg_index < ts_size);
-	Symbol arg = ts[i_proc + n_args - arg_index];
+	// Get argument
+	int i_ts = i_proc + arg_index + 1;
+	assert(i_ts < ts_size);
+	return i_ts;
+}
+
+void ts_check_arg_type(const char* func_name, int arg_index, TipoVar tipo) {
+	// Get arg index in ts
+	int i = ts_get_arg_idx(func_name, arg_index);
+	if (i == -1)
+		return;
+
+	// Check type
+	Symbol arg = ts[i];
 	assert(arg.tipo == Param);
 	if (arg.tipo_var != tipo) {
 		error_semantico("parámetro %d en la llamada a %s es de tipo %s, pero se esperaba %s",
 		                arg_index+1, func_name, tipo_var_to_str(tipo), tipo_var_to_str(arg.tipo_var));
 	}
+}
+
+bool ts_is_mut_param_idx(const char* func_name, int arg_index) {
+	int i = ts_get_arg_idx(func_name, arg_index);
+	if (i == -1)
+		return false;
+
+	Symbol arg = ts[i];
+	assert(arg.tipo == Param);
+	return arg.mut;
+}
+
+void ts_check_is_var(const char* var_name, const char* func_name, int arg_idx) {
+	if (!ts_is_var(var_name))
+		error_semantico("llamada a funcion %s: el argumento %d debe ser una variable", func_name, arg_idx+1);
 }
 
 void ts_check_num_args(const char* func_name, int n_given_args) {
@@ -256,6 +283,13 @@ bool ts_is_var(const char* var_name) {
 	if (i == -1)
 		return false;
 	return ts[i].tipo == Var || ts[i].tipo == Param;
+}
+
+bool ts_is_mut_param(const char* param_name) {
+	int i = ts_search(param_name);
+	if (i == -1)
+		return false;
+	return ts[i].mut && ts[i].tipo == Param;
 }
 
 TipoVar ts_get_var_type(const char* var_name) {
@@ -318,7 +352,7 @@ void ts_check_menos_bin(TipoVar tipo1, TipoVar tipo2) {
 	ts_check_op_bin_operands(tipo1, tipo2, "Menos");
 }
 
-static bool is_list_type(TipoVar tipo_lista) {
+bool is_list_type(TipoVar tipo_lista) {
 	return tipo_lista == ListBool || tipo_lista == ListChar || tipo_lista == ListFloat || tipo_lista == ListInt;
 }
 

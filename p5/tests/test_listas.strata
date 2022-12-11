@@ -1,0 +1,38 @@
+main {
+	var
+		list int li;
+		int i;
+		bool es_par, last_added;
+	endvar
+
+	proc func_es_par(int n, mut bool result) {
+		result = (n / 2) * 2 == n;
+	}
+
+	last_added = true;
+    i = 3;
+    do ({
+        insert(li, #li, i);
+		if (last_added)
+			last_added = false;
+		else {
+			i = i + 1;
+			last_added = true;
+		}
+    }) until (i >= 200);
+
+	insert(li, #li, 8);
+
+	while (#li != 0) {
+		i = li[0];
+        remove(li,0);
+        func_es_par(i, es_par);
+		if (es_par)
+			print i, " es par";
+		else
+			print i, " no es par";
+	}
+
+
+	print "fin";
+}
