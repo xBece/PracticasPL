@@ -339,11 +339,12 @@ lista_variables             : lista_variables COMA identificador
                             }
                             ;
 identificador               : IDENTIFICADOR
-  // NOTAS: no sabemos muy bien si al identificador de la izqd le tenemos que asignar
-  // lexema, tipo o ambos.
                               {
                                 $$.lex = $1.lex;
-                                $$.lugar = ts_is_mut_param($1.lex) ? string_add("*",$1.lex) : $1.lex;
+                                if (!inside_cabecera_proc && !inside_dec_var && ts_is_mut_param($1.lex))
+                                  $$.lugar = string_add("*", $1.lex);
+                                else
+                                  $$.lugar = $1.lex;
                                 if (inside_dec_var) {
                                   ts_insert_var($1.lex, current_declaring_type);
                                   gen_new_var($1.lex, current_declaring_type);

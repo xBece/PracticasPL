@@ -1,36 +1,58 @@
 main {
 	var
 		list int li;
-		int i;
-		bool es_par, last_added;
+		int i, n, calc;
 	endvar
 
-	proc func_es_par(int n, mut bool result) {
-		result = (n / 2) * 2 == n;
+	proc operacion(int n, mut int result) {
+		var
+			int calc;
+		endvar
+		proc op1(int n, mut int result) {
+			result = n*3;
+		}
+		proc op2(int n, mut int result) {
+			result = n/2;
+		}
+
+		op1(n, calc);
+		op2(calc, calc);
+		result = calc + 1;
 	}
 
-	last_added = true;
-    i = 3;
-    do ({
-        insert(li, #li, i);
-		if (last_added)
-			last_added = false;
+	proc fib(int n, mut int result) {
+		var
+			int tmp1, tmp2;
+		endvar
+		if (n < 2)
+			result = n;
 		else {
-			i = i + 1;
-			last_added = true;
+			fib(n-1, tmp1);
+			fib(n-2, tmp2);
+			result = tmp1 + tmp2;
 		}
-    }) until (i >= 200);
+	}
 
-	insert(li, #li, 8);
+	i = 0;
+	do ({
+		insert(li, #li, i);
+		i = i + 1;
+	}) until (i >= 10);
+	li[0] = 7;
+
+	i = 0;
+	while (i < #li) {
+		fib(li[i], calc);
+		print "fib", li[i], " =", calc;
+		i = i + 1;
+	}
 
 	while (#li != 0) {
-		i = li[0];
-        remove(li,0);
-        func_es_par(i, es_par);
-		if (es_par)
-			print i, " es par";
-		else
-			print i, " no es par";
+		n = li[0];
+		remove(li,0);
+
+		operacion(n, calc);
+		print n, " * 3 / 2 + 1 =", calc;
 	}
 
 

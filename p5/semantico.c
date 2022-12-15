@@ -9,10 +9,10 @@
 
 extern int yylineno;
 
-#define error_semantico(...) do {            \
-	printf("[Línea %d] ", yylineno);         \
-	printf("Error semántico: " __VA_ARGS__); \
-	printf("\n");                            \
+#define error_semantico(...) do {                     \
+	fprintf(stderr, "[Línea %d] ", yylineno);         \
+	fprintf(stderr, "Error semántico: " __VA_ARGS__); \
+	fprintf(stderr, "\n");                            \
 } while(0)
 
 typedef enum {
