@@ -60,8 +60,14 @@ void gen_end(void) {
 	assert(g_curr_indent_level == 1);
 	g_curr_indent_level -= 1;
 	gen_add_code("}\n");
-	printf("%s\n", g_all_code);
-	// TODO: guardar archivo
+
+	FILE* f = fopen("generated.c", "w");
+	if (!f) {
+		fprintf(stderr, "error al abrir archivo generated.c como escritura");
+		return;
+	}
+	fprintf(f, "%s\n", g_all_code);
+	fclose(f);
 }
 
 static void gen_add_code_aux(const char* format, va_list arg_list) {
